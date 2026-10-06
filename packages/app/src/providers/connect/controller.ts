@@ -11,7 +11,7 @@ import { useData } from "@/runtime/server/current"
 import { createEffect, createMemo, on, onCleanup } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 
-export type ProviderConnectMethod = Extract<IntegrationMethod, { type: "key" | "oauth" }>
+export type ProviderConnectMethod = Extract<IntegrationMethod, { type: "key" | "oauth" | "form" }>
 type Authorization = IntegrationOauthConnectOutput["data"]
 
 // OpenCode Go and OpenCode Zen both bill through the OpenCode Console, so the
@@ -85,9 +85,11 @@ export function createProviderConnectionController(options: {
   )
   const methods = createMemo<ProviderConnectMethod[]>(() => {
     const values = integration.latest?.methods.filter(
-      (method): method is ProviderConnectMethod => method.type === "key" || method.type === "oauth",
+      (method): method is ProviderConnectMethod =>
+        method.type === "key" || method.type === "oauth" || method.type === "form",
     )
-    if (values?.length) return [...values]
+    if (values?.length)
+      return values.toSorted((a, b) => ("order" in a ? (a.order ?? 0) : 0) - ("order" in b ? (b.order ?? 0) : 0))
     return [{ type: "key", label: language.t("provider.connect.method.apiKey") }]
   })
   const [store, setStore] = createStore({
@@ -289,6 +291,26 @@ export function createProviderConnectionController(options: {
     const merged = { ...providerFormDefaults(selected.form), ...answer }
     if (selected.type === "key") {
       dispatch({ type: "auth.answer", answer: Object.keys(merged).length ? merged : undefined })
+      return
+    }
+    if (selected.type === "form") {
+      dispatch({ type: "auth.answer", answer: merged })
+      dispatch({ type: "auth.pending" })
+      const result = await serverSDK.api.integration.connect
+        .form({
+          integrationID: options.provider(),
+          methodID: selected.id,
+          answer: merged,
+          location: location(),
+        })
+        .then(() => ({ ok: true as const }))
+        .catch((error) => ({ ok: false as const, error }))
+      if (polling.disposed || generation !== polling.generation) return
+      if (!result.ok) {
+        dispatch({ type: "auth.error", error: errorMessage(result.error) })
+        return
+      }
+      await finish()
       return
     }
     if (selected.type !== "oauth") return

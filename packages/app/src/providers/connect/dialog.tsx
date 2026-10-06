@@ -3,6 +3,7 @@ import { Badge } from "@opencode/ui/badge"
 import { useDialog } from "@opencode/ui/context/dialog"
 import { Icon } from "@opencode/ui/icon"
 import { List } from "@opencode/ui/list"
+import { RadioGroup, RadioItem } from "@opencode/ui/radio"
 import { Spinner } from "@opencode/ui/spinner"
 import { TextField } from "@opencode/ui/text-field"
 import { DialogBody, DialogHeader, DialogTitle, Dialog } from "@opencode/ui/dialog"
@@ -534,7 +535,7 @@ function ProviderConnection(props: {
   }))
   const methodLabel = (value?: { type?: string; label?: string }) => {
     if (!value) return ""
-    if (value.type === "key") return language.t("provider.connect.method.apiKey")
+    if (value.type === "key") return value.label ?? language.t("provider.connect.method.apiKey")
     return value.label ?? ""
   }
 
@@ -578,6 +579,8 @@ function ProviderConnection(props: {
         Object.entries(defaults).flatMap(([key, value]) => (typeof value === "string" ? [[key, value]] : [])),
       ) as Record<string, string>,
       index: 0,
+      customKey: "",
+      customText: "",
     })
 
     const fields = createMemo<StringForm[]>(() => {
@@ -602,7 +605,7 @@ function ProviderConnection(props: {
     })
     const valid = createMemo(() => {
       const item = current()
-      if (!item || item.field.options) return false
+      if (!item || (item.field.options && !item.field.custom)) return false
       if (!item.field.required) return true
       return (formStore.value[item.field.key] ?? "").trim().length > 0
     })
@@ -612,7 +615,7 @@ function ProviderConnection(props: {
       if (selected === undefined) return
       const next = fields().findIndex((field, i) => i > index && matches(field, value))
       if (next !== -1) {
-        setFormStore("index", next)
+        setFormStore({ index: next, customKey: "", customText: "" })
         return
       }
       await controller.auth.select(selected, value)
@@ -621,7 +624,7 @@ function ProviderConnection(props: {
     async function handleSubmit(e: SubmitEvent) {
       e.preventDefault()
       const item = current()
-      if (!item || item.field.options) return
+      if (!item || (item.field.options && !item.field.custom)) return
       if (!valid()) return
       await next(item.index, formStore.value)
     }
@@ -637,13 +640,22 @@ function ProviderConnection(props: {
       if (!field?.options) return undefined
       return field
     })
+    const custom = () => {
+      const field = select()
+      if (!field?.custom) return false
+      const value = formStore.value[field.key]
+      return (
+        formStore.customKey === field.key ||
+        (value !== undefined && !field.options?.some((option) => option.value === value))
+      )
+    }
 
     return (
       <form onSubmit={handleSubmit} class="flex flex-col items-start gap-4 px-3">
         <Switch>
           <Match when={item()?.field.options === undefined}>
             <TextField
-              type="text"
+              type={text()?.format === "password" ? "password" : "text"}
               label={text()?.title ?? ""}
               placeholder={text()?.placeholder}
               value={text() ? (formStore.value[text()!.key] ?? "") : ""}
@@ -661,33 +673,97 @@ function ProviderConnection(props: {
             <div class="w-full flex flex-col gap-1.5">
               <div class="text-14-regular text-text-base">{select()?.title}</div>
               <div>
-                <List
-                  class="px-3"
-                  items={select()?.options ?? []}
-                  key={(x) => x.value}
-                  current={select()?.options?.find((x) => x.value === formStore.value[select()!.key])}
-                  onSelect={(value) => {
-                    if (!value) return
-                    const field = select()
-                    if (!field) return
-                    const nextValue = {
-                      ...formStore.value,
-                      [field.key]: value.value,
-                    }
-                    setFormStore("value", field.key, value.value)
-                    void next(item()!.index, nextValue)
-                  }}
+                <Show
+                  when={select()?.custom}
+                  fallback={
+                    <List
+                      class="px-3"
+                      items={select()?.options ?? []}
+                      key={(x) => x.value}
+                      current={select()?.options?.find((x) => x.value === formStore.value[select()!.key])}
+                      onSelect={(value) => {
+                        if (!value) return
+                        const field = select()
+                        if (!field) return
+                        const nextValue = {
+                          ...formStore.value,
+                          [field.key]: value.value,
+                        }
+                        setFormStore("value", field.key, value.value)
+                        void next(item()!.index, nextValue)
+                      }}
+                    >
+                      {(option) => (
+                        <div class="w-full flex items-center gap-x-2">
+                          <div class="w-4 h-2 rounded-[1px] bg-input-base shadow-xs-border-base flex items-center justify-center">
+                            <div class="w-2.5 h-0.5 ml-0 bg-icon-strong-base hidden" data-slot="list-item-extra-icon" />
+                          </div>
+                          <span>{option.label}</span>
+                          <span class="text-14-regular text-text-weak">{option.description}</span>
+                        </div>
+                      )}
+                    </List>
+                  }
                 >
-                  {(option) => (
-                    <div class="w-full flex items-center gap-x-2">
-                      <div class="w-4 h-2 rounded-[1px] bg-input-base shadow-xs-border-base flex items-center justify-center">
-                        <div class="w-2.5 h-0.5 ml-0 bg-icon-strong-base hidden" data-slot="list-item-extra-icon" />
-                      </div>
-                      <span>{option.label}</span>
-                      <span class="text-14-regular text-text-weak">{option.description}</span>
-                    </div>
-                  )}
-                </List>
+                  <RadioGroup
+                    label={select()?.title}
+                    hideLabel
+                    description={select()?.description}
+                    value={
+                      custom()
+                        ? String(select()?.options?.length ?? 0)
+                        : String(
+                            select()?.options?.findIndex((option) => option.value === formStore.value[select()!.key]) ??
+                              -1,
+                          )
+                    }
+                    onChange={(value) => {
+                      const field = select()
+                      if (!field) return
+                      const option = field.options?.[Number(value)]
+                      if (option) {
+                        if (custom()) setFormStore("customText", formStore.value[field.key] ?? "")
+                        setFormStore({ customKey: "" })
+                        setFormStore("value", field.key, option.value)
+                        return
+                      }
+                      setFormStore({ customKey: field.key })
+                      setFormStore("value", field.key, formStore.customText)
+                    }}
+                  >
+                    <For each={select()?.options}>
+                      {(option, index) => (
+                        <RadioItem value={String(index())} label={option.label} description={option.description} />
+                      )}
+                    </For>
+                    <RadioItem
+                      value={String(select()?.options?.length ?? 0)}
+                      label={language.t("ui.messagePart.option.typeOwnAnswer")}
+                    />
+                    <Show when={custom()}>
+                      <TextField
+                        ref={(input: HTMLInputElement) => queueMicrotask(() => input.focus())}
+                        type={select()?.format === "password" ? "password" : "text"}
+                        label={language.t("ui.messagePart.option.typeOwnAnswer")}
+                        hideLabel
+                        placeholder={select()?.placeholder ?? language.t("ui.question.custom.placeholder")}
+                        value={formStore.value[select()!.key] ?? ""}
+                        onChange={(value) => {
+                          const field = select()
+                          if (!field) return
+                          setFormStore({ customText: value })
+                          setFormStore("value", field.key, value)
+                        }}
+                        onKeyDown={(event: KeyboardEvent) => {
+                          if (event.key !== "Escape") event.stopPropagation()
+                        }}
+                      />
+                    </Show>
+                  </RadioGroup>
+                  <Button class="w-auto" type="submit" size="large" variant="contrast" disabled={!valid()}>
+                    {language.t("common.continue")}
+                  </Button>
+                </Show>
               </div>
             </div>
           </Match>
