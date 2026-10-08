@@ -1,10 +1,23 @@
-import { createEffect, For, Match, on, onCleanup, onMount, Show, Switch, type Accessor, type JSX } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  For,
+  Match,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+  type Accessor,
+  type JSX,
+} from "solid-js"
 import { animate, type AnimationPlaybackControls } from "motion"
 import { useI18n } from "@opencode-ai/ui/context/i18n"
 import { createStore } from "solid-js/store"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
 import type { IconProps } from "@opencode-ai/ui/icon"
 import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
+import { RadioGroup } from "@opencode-ai/ui/radio-group"
 
 export type TriggerTitle = {
   title: string
@@ -28,6 +41,7 @@ export interface BasicToolProps {
   children?: JSX.Element
   status?: string
   hideDetails?: boolean
+  hideSummaryWhenOpen?: boolean
   defaultOpen?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -204,7 +218,12 @@ export function BasicTool(props: BasicToolProps) {
                     >
                       <TextShimmer text={title().title} active={pending()} />
                     </span>
-                    <Show when={!pending() || title().subtitle || title().args?.length}>
+                    <Show
+                      when={
+                        (!props.hideSummaryWhenOpen || !open()) &&
+                        (!pending() || title().subtitle || title().args?.length)
+                      }
+                    >
                       <Show when={title().subtitle}>
                         <span
                           data-slot="basic-tool-tool-subtitle"
@@ -325,6 +344,10 @@ export function GenericTool(props: {
   status?: string
   hideDetails?: boolean
   input?: Record<string, unknown>
+  output?: string
+  defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
   const i18n = useI18n()
 
@@ -338,6 +361,74 @@ export function GenericTool(props: {
         args: args(props.input),
       }}
       hideDetails={props.hideDetails}
-    />
+      hideSummaryWhenOpen={!props.hideDetails}
+      defaultOpen={props.defaultOpen}
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      allowOpenWhilePending
+      defer
+    >
+      <div data-component="generic-tool-details">
+        <Show when={props.input}>
+          {(input) => (
+            <section>
+              <div data-slot="generic-tool-label">{i18n.t("ui.basicTool.input")}</div>
+              <div data-slot="generic-tool-data" tabIndex={0} role="region" aria-label={i18n.t("ui.basicTool.input")}>
+                <dl>
+                  <For each={Object.entries(input())}>
+                    {([key, value]) => (
+                      <div>
+                        <dt>{key}</dt>
+                        <dd>
+                          <pre>{typeof value === "string" ? value : JSON.stringify(value, null, 2)}</pre>
+                        </dd>
+                      </div>
+                    )}
+                  </For>
+                </dl>
+              </div>
+            </section>
+          )}
+        </Show>
+        <Show when={props.output !== undefined}>
+          <GenericToolOutput output={props.output ?? ""} />
+        </Show>
+      </div>
+    </BasicTool>
+  )
+}
+
+function GenericToolOutput(props: { output: string }) {
+  const i18n = useI18n()
+  const [state, setState] = createStore({ format: "raw" })
+  const json = createMemo(() => {
+    try {
+      return JSON.stringify(JSON.parse(props.output), null, 2)
+    } catch {
+      return undefined
+    }
+  })
+
+  return (
+    <section>
+      <div data-slot="generic-tool-output-header">
+        <div data-slot="generic-tool-label">{i18n.t("ui.basicTool.output")}</div>
+        <Show when={json() !== undefined}>
+          <RadioGroup
+            size="small"
+            options={["raw", "json"]}
+            current={state.format}
+            label={(format) => i18n.t(`ui.basicTool.output.${format}`)}
+            onSelect={(format) => {
+              if (format) setState("format", format)
+            }}
+            aria-label={i18n.t("ui.basicTool.output")}
+          />
+        </Show>
+      </div>
+      <div data-slot="generic-tool-data" tabIndex={0} role="region" aria-label={i18n.t("ui.basicTool.output")}>
+        <pre>{state.format === "json" ? (json() ?? props.output) : props.output}</pre>
+      </div>
+    </section>
   )
 }
