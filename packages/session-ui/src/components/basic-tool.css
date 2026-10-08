@@ -170,6 +170,91 @@
   }
 }
 
+[data-component="generic-tool-details"] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 16px;
+
+  section {
+    min-width: 0;
+  }
+
+  [data-slot="generic-tool-label"] {
+    margin-bottom: 4px;
+    font-size: 13px;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-strong);
+  }
+
+  [data-slot="generic-tool-output-header"] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+
+    [data-slot="generic-tool-label"] {
+      margin-bottom: 0;
+    }
+
+    &:has([data-component="radio-group"]) {
+      min-height: 40px;
+    }
+
+    [data-slot="radio-group-item-label"] {
+      min-width: 40px;
+
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -8px 0;
+      }
+    }
+  }
+
+  [data-slot="generic-tool-data"] {
+    max-height: 320px;
+    overflow: auto;
+    padding: 8px 12px;
+    border: 1px solid var(--border-weak-base);
+    border-radius: 6px;
+    color: var(--text-base);
+    font-family: var(--font-family-mono);
+    font-size: 13px;
+    line-height: var(--line-height-normal);
+    direction: ltr;
+    unicode-bidi: isolate;
+
+    &:focus-visible {
+      outline: 2px solid var(--text-interactive-base);
+      outline-offset: 2px;
+    }
+  }
+
+  dl,
+  dd,
+  pre {
+    margin: 0;
+  }
+
+  dl > div + div {
+    margin-top: 12px;
+  }
+
+  dt {
+    margin-bottom: 4px;
+    font-weight: var(--font-weight-medium);
+  }
+
+  pre {
+    font: inherit;
+    white-space: pre;
+  }
+}
+
 [data-component="task-tool-card"] {
   width: 100%;
   min-width: 0;

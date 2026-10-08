@@ -168,6 +168,10 @@ export const dict: Record<string, string> = {
   "ui.tool.skill": "Skill",
 
   "ui.basicTool.called": "Called `{{tool}}`",
+  "ui.basicTool.input": "Input",
+  "ui.basicTool.output": "Output",
+  "ui.basicTool.output.raw": "raw",
+  "ui.basicTool.output.json": "json",
   "ui.toolErrorCard.failed": "Failed",
   "ui.toolErrorCard.copyError": "Copy error",
 

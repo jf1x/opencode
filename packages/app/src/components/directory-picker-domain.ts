@@ -321,6 +321,19 @@ export function displayPickerPath(path: string, input: string, home: string) {
   return pickerTilde(value, home) || value
 }
 
+export function pickerSearchText(absolute: string, home: string) {
+  const full = displayPickerPath(absolute, "", "")
+  const tilde = displayPickerPath(full, "~", home)
+  return Array.from(
+    new Set(
+      [full, tilde, getFilename(full)]
+        .filter(Boolean)
+        .flatMap((value) => [value, normalizePickerPath(value)])
+        .flatMap((value) => [value, value.endsWith("/") ? value : value + "/"]),
+    ),
+  ).join("\n")
+}
+
 export function createDirectorySearch(args: { sdk: ServerSDK; base: () => string | undefined; home: () => string }) {
   const cache = new Map<string, Promise<Array<{ name: string; absolute: string }>>>()
   let current = 0

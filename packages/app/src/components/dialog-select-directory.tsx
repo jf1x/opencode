@@ -8,7 +8,7 @@ import { createMemo, createResource, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { ServerConnection } from "@/context/server"
 import { useGlobal } from "@/context/global"
-import { cleanPickerInput, createDirectorySearch, displayPickerPath } from "./directory-picker-domain"
+import { cleanPickerInput, createDirectorySearch, displayPickerPath, pickerSearchText } from "./directory-picker-domain"
 import type { Path } from "@opencode-ai/sdk/v2/client"
 
 interface DialogSelectDirectoryProps {
@@ -28,17 +28,7 @@ type Row = {
 
 function toRow(absolute: string, home: string, group: Row["group"]): Row {
   const full = displayPickerPath(absolute, "", "")
-  const tilde = displayPickerPath(full, "~", home)
-  const withSlash = (value: string) => {
-    if (!value) return ""
-    if (value.endsWith("/")) return value
-    return value + "/"
-  }
-
-  const search = Array.from(
-    new Set([full, withSlash(full), tilde, withSlash(tilde), getFilename(full)].filter(Boolean)),
-  ).join("\n")
-  return { absolute: full, search, group }
+  return { absolute: full, search: pickerSearchText(full, home), group }
 }
 
 function uniqueRows(rows: Row[]) {

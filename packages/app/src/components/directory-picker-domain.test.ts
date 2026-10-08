@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import fuzzysort from "fuzzysort"
 import {
   absoluteTreePath,
   activeTreeNavigation,
@@ -20,6 +21,7 @@ import {
   pickerParent,
   pickerRoot,
   pickerAbsoluteInput,
+  pickerSearchText,
 } from "./directory-picker-domain"
 
 test("maps server directory entries into Pierre paths", () => {
@@ -103,6 +105,20 @@ test("displays paths using the selected server path format", () => {
   )
   expect(displayPickerPath("/home/luke/repos", "repos", "/home/luke")).toBe("~/repos")
   expect(displayPickerPath("/home/luke/repos", "~/repos", "/home/luke")).toBe("~/repos")
+})
+
+test("keeps Windows directory search rows matchable with either path separator", () => {
+  const rows = [
+    {
+      absolute: "C:\\Projects\\ExampleApp",
+      search: pickerSearchText("C:\\Projects\\ExampleApp", "C:\\Users\\luke"),
+    },
+  ]
+  for (const query of ["C:/Projects", "C:\\Projects", "C:/Projects/"]) {
+    expect(fuzzysort.go(query.toLowerCase(), rows, { keys: ["search"] }).map((match) => match.obj.absolute)).toEqual([
+      rows[0].absolute,
+    ])
+  }
 })
 
 test("treats the server share prefix as the UNC root", () => {
