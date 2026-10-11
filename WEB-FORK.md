@@ -2,14 +2,38 @@
 
 This fork adds expandable input and output panels to generic tool calls, including custom and MCP tools such as `execute`. It keeps the compact summary and renders detail content on expansion. String arguments retain their line breaks; structured values use formatted JSON. Output appears as plain text, with scrolling for long results.
 
-The current base is **v1.18.34**, matching the running backend at setup time. The CLI on PATH reported 1.18.35. Check the running server's version before choosing an upstream release.
+The current base is **v1.19.0**. The installed standalone command reports **1.19.0-jf**. When using the frontend-only launcher, choose a backend version matching the fork's base.
 
 - Fork: <https://github.com/jf1x/opencode>
-- Branch: `expand-tool-calls`
+- Branch: `jf-web`
+- Backup tag: `jf-backup-v1.18.34` retains the fork on v1.18.34.
 - `origin`: your fork
 - `upstream`: <https://github.com/anomalyco/opencode>
 
 ## Build and run
+
+### Standalone Windows command
+
+Requires Bun 1.3.14, this checkout's dependencies, and an existing `%USERPROFILE%\.local\bin` directory on PATH. From this repository's root, build and install the bundled fork:
+
+```powershell
+bun install --frozen-lockfile
+bun run script/install-jf.ts
+```
+
+The installer embeds the modified frontend and installs `%USERPROFILE%\.local\bin\opencode-jf.exe`. It builds the current Windows architecture using the installed dependencies, with channel `jf` and version `<base version>-jf`.
+
+From any project folder, run:
+
+```powershell
+opencode-jf web --port 4444
+```
+
+Open <http://127.0.0.1:4444>. This command runs the backend and modified frontend in one process and uses your existing OpenCode configuration and session storage. Leave the terminal open while you use it; press Ctrl+C to stop it. You can use `opencode-jf web` without the port option to choose an available port and open the browser.
+
+After changing the fork, stop the installed fork process and rerun `bun run script/install-jf.ts` from the repository root to rebuild and replace the executable. To check the installed version, run `opencode-jf --version`.
+
+### Frontend with a separate backend
 
 Requires Bun 1.3.14 and a running OpenCode server. Run these commands from this repository's root:
 
@@ -64,37 +88,37 @@ Enable your stylesheet extension for the custom frontend URL, since it has a dif
 
 ## Save the local changes
 
-Commit the renderer files as a small patch before updating the base:
+Commit local changes before updating the base. For changes to the standalone installer and guide:
 
 ```powershell
-git add packages/session-ui/src/components/basic-tool.tsx packages/session-ui/src/components/basic-tool.css packages/ui/src/i18n/en.ts
-git commit -m "feat(session-ui): expand generic tool calls"
-git add packages/app/serve-fork.ts packages/app/serve-fork.test.ts WEB-FORK.md
-git commit -m "chore(app): add local frontend launcher and update guide"
-git add packages/app/src/components/dialog-select-directory.tsx packages/app/src/components/directory-picker-domain.ts packages/app/src/components/directory-picker-domain.test.ts
-git commit -m "fix(app): match Windows project paths with either separator"
-git push -u origin expand-tool-calls
+git add script/install-jf.ts WEB-FORK.md
+git commit -m "chore(app): install standalone fork command"
+git push origin jf-web
 ```
 
 ## Update to another release
 
-Start with a clean working tree and use the release matching your running backend. For example, to move from 1.18.34 to 1.18.35:
+Prefer rebasing for this fork's small patch stack. Use a new branch to retain the previous base and avoid rewriting a published branch. Prefer merging when collaborators depend on the existing commit IDs.
+
+The v1.18.34 to v1.19.0 update used these commands after preserving local changes, then renamed the verified update branch to `jf-web`:
 
 ```powershell
 git status --short
-git fetch upstream tag v1.18.35
-git switch -c tool-panels-update expand-tool-calls
-git rebase --onto v1.18.35 v1.18.34
+git fetch upstream tag v1.19.0
+git switch -c fork-update expand-tool-calls
+git rebase --onto v1.19.0 v1.18.34
 bun install --frozen-lockfile
 ```
 
 Resolve any conflicts in the renderer, then run `git rebase --continue`. Run `git rebase --abort` to return the update branch to its prior state.
 
-Run the checks below and rebuild before using the updated frontend. Keep the previous branch until you verify the new build. Push the update branch with `git push -u origin tool-panels-update` after verification.
+Run the checks below and `bun run script/install-jf.ts` before using the updated standalone command. Keep the previous branch until you verify the new build, then tag its tip as a backup and promote the update branch to `jf-web`.
 
-For later updates, substitute the current and target base tags and choose a new short update-branch name. Update the base version in this guide after a successful upgrade.
+For later updates, start with a clean working tree on `jf-web`, substitute the current and target base tags, and choose a new short update-branch name. Replacing a published `jf-web` with rebased history requires a coordinated force-with-lease push; choose merging if you need to preserve published commit IDs. For the frontend-only launcher, use the release matching your running backend. Update the base version and backup tag in this guide after a successful upgrade.
 
 ## Checks
+
+The v1.19.0 update passed the session-ui, ui, and app typechecks, 83 session-ui tests, and 25 focused project-picker/proxy tests. The bundled Windows build passed its version smoke check and served the API plus the embedded fork HTML and JavaScript, including generic tool details.
 
 ```powershell
 bun run --cwd packages/session-ui typecheck
